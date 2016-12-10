@@ -23,6 +23,18 @@ def get_greatest_square(n):
       return x
     x = y
 
+def create_stickman(d, p, x_origin, y_origin, fill):
+  scale_fx = p / 130.0
+  g = svg.container.Group(transform='translate({} {}) scale({})'.format(x_origin, y_origin, scale_fx))
+  r = d.rect(insert=(0, 0), size=(130, 130), fill='white')
+  g1 = svg.container.Group()
+  c = d.circle(center=(65.5, 15.5), r=9.5, fill=fill)
+  str_commands = 'M86,38A11.48,11.48,0,0,0,75,27v0H55v0A11.48,11.48,0,0,0,44,38h0V70a4,4,0,0,0,8,0V45.45L53,46v73h0A5.5,5.5,0,0,0,64,119h0V76h2v43h0A5.5,5.5,0,0,0,77,119h0V46l1-.52V70a4,4,0,0,0,8,0V38Z'
+  path = d.path(d=str_commands, fill=fill)
+  g1.elements = [c, path]
+  g.elements = [r, g1]
+  return g
+
 def create_shape(drawing, p, x, y, shape, fill, stroke_w):
   if shape == 'rect':
     return drawing.rect(insert=(x * p, y * p), size=(p, p),
@@ -31,21 +43,27 @@ def create_shape(drawing, p, x, y, shape, fill, stroke_w):
     offset = p / 2
     return drawing.circle(center=(x * p + offset, y * p + offset), r = offset,
                    fill=fill, stroke='white', stroke_width=stroke_w)
+  if shape == 'person':
+    return create_stickman(drawing, p, x * p, y * p, fill)
 
-def create_img(odds, shape='rect', width=100, height=100):
+def create_img(odds, shape='rect', color1='black', color2='red',
+               width=100, height=100):
   print odds
   vals = odds.split(':')
   num = int(vals[0])
   total = int(vals[1])
   print total
 
-  if total >= 100:
-    return create_large_img(odds, shape, width, height)
-
   min_dim = int(math.floor(get_greatest_square(total)))
   print min_dim
+
   max_dim = int(math.ceil(total * 1.0 / min_dim))
   print max_dim
+
+  if total >= 100 and num < max_dim:
+    return create_large_img(odds, shape, color1, color2, width, height)
+
+  
   p = math.floor(width / max_dim)
   stroke_w = int(math.floor(p / 7))
   
@@ -63,16 +81,17 @@ def create_img(odds, shape='rect', width=100, height=100):
     for x in range(max_dim):
       if count > total:
         break
-      fill_color = 'black'
+      fill_color = color1
       if count >= standout_index and standouts_placed < num:
-        fill_color = 'red'
+        fill_color = color2
         standouts_placed += 1
       d.add(create_shape(d, p, x, y, shape, fill_color, stroke_w))
       count += 1
   return d.tostring()
 
 
-def create_large_img(odds, shape='rect', width=1000, height=1000):
+def create_large_img(odds, shape='rect', color1='black', color2='red',
+                     width=1000, height=1000):
   print odds
   vals = odds.split(':')
   num = int(vals[0])
@@ -89,7 +108,7 @@ def create_large_img(odds, shape='rect', width=1000, height=1000):
   print standout_index
 
   d = svg.Drawing(size=(width, height))
-  repeat = create_shape(d, p, 0, 0, shape, 'black', p / 7)
+  repeat = create_shape(d, p, 0, 0, shape, color1, p / 7)
   pattern = d.pattern(insert=(0, 0), size=(p, p),
                       patternUnits="userSpaceOnUse", id='pattern')
   pattern.add(repeat)
@@ -103,13 +122,15 @@ def create_large_img(odds, shape='rect', width=1000, height=1000):
   for i in range(num):
     if shape == 'rect':
       d.add(d.rect(insert=(i * p, p * standout_index),
-                   size=(p, p), fill='red',
+                   size=(p, p), fill=color2,
                    stroke='white', stroke_width=stroke_w))
     elif shape == 'circle':
       offset = p / 2
       d.add(d.circle(center=(i * p + offset, p * standout_index + offset),
-                   r=offset, fill='red',
+                   r=offset, fill=color2,
                    stroke='white', stroke_width=stroke_w))
+    elif shape == 'person':
+      d.add(create_stickman(d, p, i * p, p * standout_index, color2))
 
   
   d.add(d.rect(insert=((i + 1) * p, standout_index * p),
@@ -151,18 +172,38 @@ class ImageRequestHandler(webapp2.RequestHandler):
       self.response.set_status(500)
       return
 
+    # Check shape
     shape = 'rect'
-    shape_req = self.request.get('circle')
-    if shape_req == '1':
+    shape_req = self.request.get('shape')
+    if shape_req == 'circle':
       shape = 'circle'
+    elif shape_req == 'person':
+      shape = 'person'
 
+    # Check colors
+    color_re = r'^[\dA-Fa-f]{6}$'
+
+    color1 = 'black'
+    color1_req = self.request.get('color1')
+    print color1_req
+    if re.match(color_re, color1_req):
+      color1 = '#' + re.match(color_re, color1_req).group()
+
+    print color1
+
+    color2 = 'red'
+    color2_req = self.request.get('color2')
+    if re.match(color_re, color2_req):
+      color2 = '#' + re.match(color_re, color2_req).group()
+
+    # Check dimensions
     w = self.request.get('w')
     h = self.request.get('h')
     num_re = r'^\d+$'
     if re.match(num_re, w) and re.match(num_re, h):
-      img = create_img(odds, shape, int(w), int(h))
+      img = create_img(odds, shape, color1, color2, int(w), int(h))
     else:
-      img = create_img(odds, shape)
+      img = create_img(odds, shape, color1, color2)
 
     self.response.headers['content-type'] = 'image/svg+xml'
     self.response.write(img)
