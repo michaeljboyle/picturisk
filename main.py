@@ -58,7 +58,7 @@ def create_shape(drawing, p, x, y, shape, fill):
     return create_rect_stickman(drawing, p, x, y, fill)
 
 def create_img(odds, shape='rect', color1='black', color2='red',
-               width=100, height=100):
+               width=1000, height=1000):
   
   vals = odds.split(':')
   num = int(vals[0])
@@ -75,10 +75,6 @@ def create_img(odds, shape='rect', color1='black', color2='red',
       min_dim = 1
     max_dim = int(math.ceil(total * 1.0 / min_dim))
 
-
-  if total >= 100 and num < max_dim:
-    return create_large_img(odds, shape, color1, color2, width, height)
-
   print odds
   print total
   print get_greatest_square(total)
@@ -91,6 +87,17 @@ def create_img(odds, shape='rect', color1='black', color2='red',
   # Change scale for rectangular people
   if shape == 'person_rect':
     py = p * PERSON_H / PERSON_W
+
+  if total >= 100 and num < max_dim:
+    return create_large_img(num, total, min_dim, max_dim, p, py, shape,
+                            color1, color2, width, height)
+  else:
+    return create_small_img(num, total, min_dim, max_dim, p, py, shape,
+                            color1, color2, width, height)
+
+
+def create_small_img(num, total, min_dim, max_dim, p, py, shape,
+                     color1, color2, width, height):
   
   standout_index = math.floor(total * 0.75)
   # Adjust standout index to make sure img shows all standouts
@@ -115,42 +122,14 @@ def create_img(odds, shape='rect', color1='black', color2='red',
   return d.tostring()
 
 
-def create_large_img(odds, shape='rect', color1='black', color2='red',
-                     width=1000, height=1000):
-  
-  vals = odds.split(':')
-  num = int(vals[0])
-  total = int(vals[1])
-
-  # if the shape is a rect person, it can hold more people in the width,
-  # so the max dim needs to go up and min dim needs to go down
-  if shape != 'person_rect':
-    min_dim = int(math.floor(get_greatest_square(total)))
-    max_dim = int(math.ceil(total * 1.0 / min_dim))
-  else:
-    min_dim = int(math.floor(get_greatest_square(total) * (1 - PERSON_W / PERSON_H)))
-    if min_dim < 1:
-      min_dim = 1
-    max_dim = int(math.ceil(total * 1.0 / min_dim))
-
-  print odds
-  print total
-  print get_greatest_square(total)
-  print min_dim
-  print max_dim
-
-  p = math.floor(width / max_dim)
-  print p
-  py = p
-  # Change scale for rectangular people
-  if shape == 'person_rect':
-    py = p * PERSON_H / PERSON_W
+def create_large_img(num, total, min_dim, max_dim, p, py, shape,
+                     color1, color2, width, height):
   
   standout_index = math.floor(min_dim * 0.75)
   print standout_index
 
   d = svg.Drawing(size=(width, height))
-  
+
   repeat = create_shape(d, p, 0, 0, shape, color1)
   pattern = d.pattern(insert=(0, 0), size=(p, py),
                       patternUnits="userSpaceOnUse", id='pattern')
