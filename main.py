@@ -5,12 +5,8 @@ import re
 import svgwrite as svg
 import math
 
-PERSON = """
-  <g id="svg_3">
-   <path id="svg_1" d="m251.030228,136.790359c14.424759,0 26.085861,-11.200279 26.085861,-25.129311c0,-13.842712 -11.661102,-25.10305 -26.085861,-25.10305c-14.335464,0 -25.996552,11.260338 -25.996552,25.10305c0.003906,13.929031 11.665009,25.129311 25.996552,25.129311z" fill="#231F20"/>
-   <path id="svg_2" d="m215.83696,380.531555c0,7.799683 6.436951,14.105438 14.514221,14.105438c8.046127,0 14.607452,-6.305756 14.607452,-14.105438l0,-118.203491l12.236404,0l0,118.203491c0,7.799683 6.561279,14.105438 14.607483,14.105438c8.07724,0 14.545288,-6.305756 14.545288,-14.105438l0.089386,-203.800781l12.146973,0l0,75.128967c0,15.130096 20.375854,15.130096 20.375854,0l0,-76.769241c0,-16.684067 -13.453094,-32.989014 -33.677277,-32.989014l-68.994843,-0.086334c-18.494553,0 -33.311905,14.544601 -33.311905,32.60994l0,77.238373c0,14.953705 20.496307,14.953705 20.496307,0l0,-75.13269l12.360794,0l0,203.800781l0.00386,0z" fill="#231F20"/>
-  </g>
-  """
+PERSON_W = 50.0
+PERSON_H = 130.0
 
 def get_path_id(path):
   return path.split('/')[-1]
@@ -24,9 +20,9 @@ def get_greatest_square(n):
     x = y
 
 def create_stickman(d, p, x_origin, y_origin, fill):
-  scale_fx = p / 130.0
+  scale_fx = p / PERSON_H
   g = svg.container.Group(transform='translate({} {}) scale({})'.format(x_origin, y_origin, scale_fx))
-  r = d.rect(insert=(0, 0), size=(130, 130), fill='white')
+  r = d.rect(insert=(0, 0), size=(PERSON_H, PERSON_H), fill='white')
   g1 = svg.container.Group()
   c = d.circle(center=(65.5, 15.5), r=9.5, fill=fill)
   str_commands = 'M86,38A11.48,11.48,0,0,0,75,27v0H55v0A11.48,11.48,0,0,0,44,38h0V70a4,4,0,0,0,8,0V45.45L53,46v73h0A5.5,5.5,0,0,0,64,119h0V76h2v43h0A5.5,5.5,0,0,0,77,119h0V46l1-.52V70a4,4,0,0,0,8,0V38Z'
@@ -35,37 +31,66 @@ def create_stickman(d, p, x_origin, y_origin, fill):
   g.elements = [r, g1]
   return g
 
-def create_shape(drawing, p, x, y, shape, fill, stroke_w):
+def create_rect_stickman(d, p, x_origin, y_origin, fill):
+  scale_fx = p / PERSON_W
+  g = svg.container.Group(transform='translate({} {}) scale({})'.format(x_origin, y_origin, scale_fx))
+  r = d.rect(insert=(0, 0), size=(PERSON_W, PERSON_H), fill='white')
+  g1 = svg.container.Group()
+  c = d.circle(center=(25.5, 15.5), r=9.5, fill=fill)
+  str_commands = 'M46,38A11.48,11.48,0,0,0,35,27v0H15v0A11.48,11.48,0,0,0,4,38H4V70a4,4,0,0,0,8,0V45.45L13,46v73h0A5.5,5.5,0,0,0,24,119h0V76h2v43h0A5.5,5.5,0,0,0,37,119h0V46l1-.52V70a4,4,0,0,0,8,0V38Z'
+  path = d.path(d=str_commands, fill=fill)
+  g1.elements = [c, path]
+  g.elements = [r, g1]
+  return g
+
+def create_shape(drawing, p, x, y, shape, fill):
+  stroke_w = int(math.floor(p / 7))
   if shape == 'rect':
-    return drawing.rect(insert=(x * p, y * p), size=(p, p),
+    return drawing.rect(insert=(x, y), size=(p, p),
                    fill=fill, stroke='white', stroke_width=stroke_w)
   if shape == 'circle':
     offset = p / 2
-    return drawing.circle(center=(x * p + offset, y * p + offset), r = offset,
+    return drawing.circle(center=(x + offset, y + offset), r = offset,
                    fill=fill, stroke='white', stroke_width=stroke_w)
   if shape == 'person':
-    return create_stickman(drawing, p, x * p, y * p, fill)
+    return create_stickman(drawing, p, x, y, fill)
+  if shape == 'person_rect':
+    return create_rect_stickman(drawing, p, x, y, fill)
 
 def create_img(odds, shape='rect', color1='black', color2='red',
                width=100, height=100):
-  print odds
+  
   vals = odds.split(':')
   num = int(vals[0])
   total = int(vals[1])
-  print total
 
-  min_dim = int(math.floor(get_greatest_square(total)))
-  print min_dim
+  # if the shape is a rect person, it can hold more people in the width,
+  # so the max dim needs to go up and min dim needs to go down
+  if shape != 'person_rect':
+    min_dim = int(math.floor(get_greatest_square(total)))
+    max_dim = int(math.ceil(total * 1.0 / min_dim))
+  else:
+    min_dim = int(math.floor(get_greatest_square(total) * (1 - PERSON_W / PERSON_H)))
+    if min_dim < 1:
+      min_dim = 1
+    max_dim = int(math.ceil(total * 1.0 / min_dim))
 
-  max_dim = int(math.ceil(total * 1.0 / min_dim))
-  print max_dim
 
   if total >= 100 and num < max_dim:
     return create_large_img(odds, shape, color1, color2, width, height)
 
+  print odds
+  print total
+  print get_greatest_square(total)
+  print min_dim
+  print max_dim
   
   p = math.floor(width / max_dim)
-  stroke_w = int(math.floor(p / 7))
+  print p
+  py = p
+  # Change scale for rectangular people
+  if shape == 'person_rect':
+    py = p * PERSON_H / PERSON_W
   
   standout_index = math.floor(total * 0.75)
   # Adjust standout index to make sure img shows all standouts
@@ -85,64 +110,72 @@ def create_img(odds, shape='rect', color1='black', color2='red',
       if count >= standout_index and standouts_placed < num:
         fill_color = color2
         standouts_placed += 1
-      d.add(create_shape(d, p, x, y, shape, fill_color, stroke_w))
+      d.add(create_shape(d, p, x * p, y * py, shape, fill_color))
       count += 1
   return d.tostring()
 
 
 def create_large_img(odds, shape='rect', color1='black', color2='red',
                      width=1000, height=1000):
-  print odds
+  
   vals = odds.split(':')
   num = int(vals[0])
   total = int(vals[1])
+
+  # if the shape is a rect person, it can hold more people in the width,
+  # so the max dim needs to go up and min dim needs to go down
+  if shape != 'person_rect':
+    min_dim = int(math.floor(get_greatest_square(total)))
+    max_dim = int(math.ceil(total * 1.0 / min_dim))
+  else:
+    min_dim = int(math.floor(get_greatest_square(total) * (1 - PERSON_W / PERSON_H)))
+    if min_dim < 1:
+      min_dim = 1
+    max_dim = int(math.ceil(total * 1.0 / min_dim))
+
+  print odds
   print total
-  min_dim = int(math.floor(get_greatest_square(total)))
+  print get_greatest_square(total)
   print min_dim
-  max_dim = int(math.ceil(total * 1.0 / min_dim))
   print max_dim
+
   p = math.floor(width / max_dim)
-  stroke_w = int(math.floor(p / 7))
+  print p
+  py = p
+  # Change scale for rectangular people
+  if shape == 'person_rect':
+    py = p * PERSON_H / PERSON_W
   
   standout_index = math.floor(min_dim * 0.75)
   print standout_index
 
   d = svg.Drawing(size=(width, height))
-  repeat = create_shape(d, p, 0, 0, shape, color1, p / 7)
-  pattern = d.pattern(insert=(0, 0), size=(p, p),
+  
+  repeat = create_shape(d, p, 0, 0, shape, color1)
+  pattern = d.pattern(insert=(0, 0), size=(p, py),
                       patternUnits="userSpaceOnUse", id='pattern')
   pattern.add(repeat)
 
   d.defs.add(pattern)
 
   d.add(d.rect(insert=(0, 0),
-               size=(max_dim * p, p * standout_index),
+               size=(max_dim * p, py * standout_index),
                fill='url(#pattern)'))
 
   for i in range(num):
-    if shape == 'rect':
-      d.add(d.rect(insert=(i * p, p * standout_index),
-                   size=(p, p), fill=color2,
-                   stroke='white', stroke_width=stroke_w))
-    elif shape == 'circle':
-      offset = p / 2
-      d.add(d.circle(center=(i * p + offset, p * standout_index + offset),
-                   r=offset, fill=color2,
-                   stroke='white', stroke_width=stroke_w))
-    elif shape == 'person':
-      d.add(create_stickman(d, p, i * p, p * standout_index, color2))
+    d.add(create_shape(d, p, i * p, standout_index * py, shape, color2))
 
   
-  d.add(d.rect(insert=((i + 1) * p, standout_index * p),
-               size=(p * (max_dim - (i + 1)), p),
+  d.add(d.rect(insert=((i + 1) * p, standout_index * py),
+               size=(p * (max_dim - (i + 1)), py),
                fill='url(#pattern)'))
 
   if (standout_index + 2 < min_dim):
-    d.add(d.rect(insert=(0, p * (standout_index + 1)),
-                 size=(p * max_dim, p * (min_dim - standout_index - 2)),
+    d.add(d.rect(insert=(0, py * (standout_index + 1)),
+                 size=(p * max_dim, py * (min_dim - standout_index - 2)),
                  fill='url(#pattern)'))
-  d.add(d.rect(insert=(0, p * (min_dim - 1)),
-               size=(p * (total - max_dim * (min_dim - 1)), p),
+  d.add(d.rect(insert=(0, py * (min_dim - 1)),
+               size=(p * (total - max_dim * (min_dim - 1)), py),
                fill='url(#pattern)'))
   return d.tostring() 
   
@@ -175,10 +208,8 @@ class ImageRequestHandler(webapp2.RequestHandler):
     # Check shape
     shape = 'rect'
     shape_req = self.request.get('shape')
-    if shape_req == 'circle':
-      shape = 'circle'
-    elif shape_req == 'person':
-      shape = 'person'
+    if shape_req in set(['circle', 'person', 'person_rect']):
+      shape = shape_req
 
     # Check colors
     color_re = r'^[\dA-Fa-f]{6}$'
