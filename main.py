@@ -58,7 +58,7 @@ def create_shape(drawing, p, x, y, shape, fill):
     return create_rect_stickman(drawing, p, x, y, fill)
 
 def create_img(odds, shape='rect', color1='black', color2='red',
-               width=1000, height=1000):
+               standout_frac=0.75, right=False, width=1000, height=1000):
   
   vals = odds.split(':')
   num = int(vals[0])
@@ -90,16 +90,16 @@ def create_img(odds, shape='rect', color1='black', color2='red',
 
   if total >= 100 and num < max_dim:
     return create_large_img(num, total, min_dim, max_dim, p, py, shape,
-                            color1, color2, width, height)
+                            color1, color2, standout_frac, right, width, height)
   else:
     return create_small_img(num, total, min_dim, max_dim, p, py, shape,
-                            color1, color2, width, height)
+                            color1, color2, standout_frac, right, width, height)
 
 
 def create_small_img(num, total, min_dim, max_dim, p, py, shape,
-                     color1, color2, width, height):
+                     color1, color2, standout_frac, right, width, height):
   
-  standout_index = math.floor(total * 0.75)
+  standout_index = math.floor(total * standout_frac)
   # Adjust standout index to make sure img shows all standouts
   while standout_index + num > total:
     standout_index -= 1
@@ -123,9 +123,9 @@ def create_small_img(num, total, min_dim, max_dim, p, py, shape,
 
 
 def create_large_img(num, total, min_dim, max_dim, p, py, shape,
-                     color1, color2, width, height):
+                     color1, color2, standout_frac, right, width, height):
   
-  standout_index = math.floor(min_dim * 0.75)
+  standout_index = math.floor(min_dim * standout_frac)
   print standout_index
 
   d = svg.Drawing(size=(width, height))
@@ -141,13 +141,19 @@ def create_large_img(num, total, min_dim, max_dim, p, py, shape,
                size=(max_dim * p, py * standout_index),
                fill='url(#pattern)'))
 
+  group = svg.container.Group()
+  if right:
+    group.update({'transform': 'scale(-1, 1) translate(-{}, 0)'.format(max_dim * p)})
   for i in range(num):
-    d.add(create_shape(d, p, i * p, standout_index * py, shape, color2))
+    group.elements.append(create_shape(d, p, i * p, standout_index * py, 
+                                       shape, color2))
 
   
-  d.add(d.rect(insert=((i + 1) * p, standout_index * py),
-               size=(p * (max_dim - (i + 1)), py),
-               fill='url(#pattern)'))
+  group.elements.append(d.rect(insert=((i + 1) * p, standout_index * py),
+                               size=(p * (max_dim - (i + 1)), py),
+                               fill='url(#pattern)'))
+
+  d.add(group)
 
   if (standout_index + 2 < min_dim):
     d.add(d.rect(insert=(0, py * (standout_index + 1)),
@@ -195,25 +201,39 @@ class ImageRequestHandler(webapp2.RequestHandler):
 
     color1 = 'black'
     color1_req = self.request.get('color1')
-    print color1_req
     if re.match(color_re, color1_req):
       color1 = '#' + re.match(color_re, color1_req).group()
-
-    print color1
 
     color2 = 'red'
     color2_req = self.request.get('color2')
     if re.match(color_re, color2_req):
       color2 = '#' + re.match(color_re, color2_req).group()
 
+    # Check standout_fraction
+    standout_frac = self.request.get('index')
+    if standout_frac:
+      try:
+        standout_frac = float(max(min(float(standout_frac), 0.8), 0.0))
+      except:
+        standout_frac = 0.75
+    else:
+      standout_frac = 0.75
+
+    # check flip
+    right = self.request.get('right')
+    if right == '1':
+      right = True
+    else:
+      right = False
+
     # Check dimensions
     w = self.request.get('w')
-    h = self.request.get('h')
     num_re = r'^\d+$'
-    if re.match(num_re, w) and re.match(num_re, h):
-      img = create_img(odds, shape, color1, color2, int(w), int(h))
+    if re.match(num_re, w):
+      img = create_img(odds, shape, color1, color2,
+                       standout_frac, right, int(w), int(w))
     else:
-      img = create_img(odds, shape, color1, color2)
+      img = create_img(odds, shape, color1, color2, standout_frac, right)
 
     self.response.headers['content-type'] = 'image/svg+xml'
     self.response.write(img)
