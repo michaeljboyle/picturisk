@@ -1,0 +1,18 @@
+<md-list flex>
+  <md-subheader class="md-no-sticky">Categories</md-subheader>
+  <md-list-item class="md-1-line" ng-repeat="item in categories" ng-click="null" layout="row">
+    <div flex class="md-list-item-text">
+      <h3>{{ item.name }}</h3>
+    </div>
+    <div class="md-list-item-text">
+      <h4>({{ item.resultCount }})</h4>
+    </div>
+  </md-list-item>
+  <md-divider ></md-divider>
+  <md-subheader class="md-no-sticky">Submissions</md-subheader>
+  <md-list-item class="md-1-line" ng-repeat="record in records" ng-click="view(record)">
+    <div class="md-list-item-text">
+      <h3>{{ record.title }}</h3>
+    </div>
+  </md-list-item>
+</md-list>

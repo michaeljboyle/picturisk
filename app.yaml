@@ -3,13 +3,21 @@ api_version: 1
 threadsafe: true
 
 handlers:
+- url: (.*)/
+  static_files: app/index.html
+  upload: app/index.html
+
+- url: /js
+  static_dir: app/js
+
+- url: /css
+  static_dir: app/css
+
 - url: /img
-  static_dir: img
-  application_readable: true
+  static_dir: app/img
+
+- url: /views
+  static_dir: app/views
 
 - url: /api/.*
   script: main.app
-
-#libraries:
-#- name: svgwrite
-#  version: 1.1.9
