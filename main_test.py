@@ -56,13 +56,13 @@ class AppTest(unittest.TestCase):
         risk = '123'
         with self.assertRaises(ValueError):
             main.get_odds_ratio(risk)
+        risk = '100:50'
+        with self.assertRaises(ValueError):
+            main.get_odds_ratio(risk)
 
     def test_get_standout_fraction(self):
         frac = '0.5'
         self.assertEqual(0.5, main.get_standout_fraction(frac))
-        # Test max is 0.8
-        frac = '0.9'
-        self.assertEqual(0.8, main.get_standout_fraction(frac))
         # Test default
         frac = 'abc'
         self.assertEqual(0.75, main.get_standout_fraction(frac))
@@ -119,7 +119,8 @@ class AppTest(unittest.TestCase):
             'color2': 'green',
             'index': '0.5',
             'right': '1',
-            'w': '500'
+            'w': '500',
+            'num_wide': '500'
         }
         response = self.testapp.get('/api/draw/', params)
         # Check color2 called ok
@@ -134,7 +135,7 @@ class AppTest(unittest.TestCase):
         create_img.assert_called_with('1:50', shape='square',
                                       color1='orange', color2='orange',
                                       standout_frac=0.75, right=True,
-                                      width=500)
+                                      width=500, num_wide=500)
         self.assertEqual(response.status_int, 200)
         self.assertEqual(response.content_type, 'image/svg+xml')
 
@@ -145,12 +146,14 @@ class AppTest(unittest.TestCase):
             'color1': 'blue',
             'color2': 'green',
             'index': '0.5',
-            'right': '1'
+            'right': '1',
+            'num_wide': 500
         }
         response = self.testapp.get('/api/draw/', params)
         create_img.assert_called_with('1:50', shape='square',
                                       color1='orange', color2='orange',
-                                      standout_frac=0.75, right=True)
+                                      standout_frac=0.75, right=True,
+                                      num_wide=500)
         self.assertEqual(response.status_int, 200)
         self.assertEqual(response.content_type, 'image/svg+xml')
 

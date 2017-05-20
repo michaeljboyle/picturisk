@@ -14,7 +14,6 @@
 
 # [START imports]
 import unittest
-import mock
 
 from google.appengine.ext import ndb
 from google.appengine.ext import testbed
@@ -56,6 +55,21 @@ class DrawTestCase(unittest.TestCase):
         total = 200
         shape = 'person_rect'
         self.assertEqual((8, 25), draw.get_unit_dims(total, shape))
+
+    def test_get_standout_index(self):
+        # Make sure indexing works properly
+        num = 1
+        total = 10
+        sof = 0.0
+        self.assertEqual(0, draw.get_standout_index(num, total, sof))
+        total = 10
+        sof = 0.9
+        self.assertEqual(9, draw.get_standout_index(num, total, sof))
+        # Make sure it properly backs off from the end
+        num = 7
+        total = 10
+        sof = 0.9
+        self.assertEqual(3, draw.get_standout_index(num, total, sof))
 
 
 # [START main]

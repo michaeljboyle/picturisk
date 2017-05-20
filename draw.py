@@ -40,6 +40,16 @@ def get_unit_dims(total, shape):
     return (min_dim, max_dim)
 
 
+def get_standout_index(num, total, standout_frac):
+    logging.info('standout_frac: %s' % standout_frac)
+    max_so_index = total - num
+    logging.info('max_so_index: %s' % max_so_index)
+    standout_index = int(min(math.floor(total * standout_frac),
+                         max_so_index))
+    logging.info('standout index: %s' % standout_index)
+    return standout_index
+
+
 def create_stickman(d, p, x_origin, y_origin, fill):
     scale_fx = p / PERSON_H
     g = svg.container.Group(transform='translate({} {}) scale({})'.format(
@@ -82,7 +92,8 @@ def create_shape(drawing, p, x, y, shape, fill):
 
 
 def create_img(odds, shape='square', color1='black', color2='red',
-               standout_frac=0.75, right=False, width=1000, height=None):
+               standout_frac=0.75, right=False, width=1000, height=None,
+               num_wide=None):
 
     if height is None:
         height = width
@@ -90,11 +101,15 @@ def create_img(odds, shape='square', color1='black', color2='red',
     vals = odds.split(':')
     num = int(vals[0])
     total = int(vals[1])
-    if total > 100000 and width < 2000:
-        width = 2000
-        height = 2000
 
-    min_dim, max_dim = get_unit_dims(total, shape)
+    if num_wide:
+        max_dim = num_wide
+        min_dim = int(math.ceil(1.0 * total / num_wide))
+    else:
+        min_dim, max_dim = get_unit_dims(total, shape)
+
+    if 1.0 * width / max_dim < 1.0:
+        width = max_dim * 1.0
 
     logging.info('odds: %s' % odds)
     logging.info('total: %s' % total)
@@ -109,82 +124,101 @@ def create_img(odds, shape='square', color1='black', color2='red',
     if shape == 'person_rect':
         py = p * PERSON_H / PERSON_W
     logging.info('unit height: %s' % py)
+    height = py * min_dim
+    logging.info('height: %s' % height)
 
-    if total >= 100 and num < max_dim:
-        return create_large_img(num, total, min_dim, max_dim, p, py, shape,
-                                color1, color2, standout_frac, right, width,
-                                height)
+    return draw_fig(num, total, min_dim, max_dim, p, py, shape,
+                    color1, color2, standout_frac, right, width,
+                    height)
+
+
+def draw_fig(num, total, min_dim, max_dim, p, py, shape,
+             color1, color2, standout_frac, right, width, height):
+    standout_index = get_standout_index(num, total, standout_frac)
+
+    d = svg.Drawing(size=(width, height))
+
+    bg_repeat = create_shape(d, p, 0, 0, shape, color1)
+    bg_pattern = d.pattern(insert=(0, 0), size=(p, py),
+                           patternUnits="userSpaceOnUse", id='bg_pattern')
+    bg_pattern.add(bg_repeat)
+    d.defs.add(bg_pattern)
+
+    so_repeat = create_shape(d, p, 0, 0, shape, color2)
+    so_pattern = d.pattern(insert=(0, 0), size=(p, py),
+                           patternUnits="userSpaceOnUse", id='so_pattern')
+    so_pattern.add(so_repeat)
+    d.defs.add(so_pattern)
+
+    # Add pattern for everything up to the start of the standout row
+    # Start by finding the row in which standout will start
+    pre_so_row = int(standout_index) / max_dim
+    logging.info('pre_so_row: %s' % pre_so_row)
+    so_start_row_left_num_bg = max(standout_index % max_dim, 0)
+    logging.info('so_start_row_left_num_bg: %s' % so_start_row_left_num_bg)
+    # Check if the first row of standouts will take up entire row
+    if (standout_index + num) < ((pre_so_row + 1) * max_dim):
+        so_start_row_width = num
+        so_start_row_right_num_bg = (
+            max_dim - so_start_row_left_num_bg -
+            so_start_row_width)
     else:
-        return create_small_img(num, total, min_dim, max_dim, p, py, shape,
-                                color1, color2, standout_frac, right, width,
-                                height)
+        so_start_row_width = max_dim - so_start_row_left_num_bg
+        so_start_row_right_num_bg = 0
+    logging.info('so_start_row_width: %s' % so_start_row_width)
+    num_full_so_rows = (num - so_start_row_width) / max_dim
+    logging.info('num_full_so_rows: %s' % num_full_so_rows)
+    so_last_row_width = (num - so_start_row_width) % max_dim
+    rem_bg_total = total - (num + pre_so_row * max_dim +
+                            so_start_row_left_num_bg +
+                            so_start_row_right_num_bg)
+    so_last_row_right_num_bg = min(max_dim - so_last_row_width,
+                                   rem_bg_total)
 
-
-def create_small_img(num, total, min_dim, max_dim, p, py, shape,
-                     color1, color2, standout_frac, right, width, height):
-
-    standout_index = math.floor(total * standout_frac)
-    # Adjust standout index to make sure img shows all standouts
-    while standout_index + num > total:
-        standout_index -= 1
-    logging.info(standout_index)
-
-    d = svg.Drawing(size=(width, height))
-
-    count = 1
-    standouts_placed = 0
-    for y in range(min_dim):
-        for x in range(max_dim):
-            if count > total:
-                break
-            fill_color = color1
-            if count >= standout_index and standouts_placed < num:
-                fill_color = color2
-                standouts_placed += 1
-            d.add(create_shape(d, p, x * p, y * py, shape, fill_color))
-            count += 1
-    return d.tostring()
-
-
-def create_large_img(num, total, min_dim, max_dim, p, py, shape,
-                     color1, color2, standout_frac, right, width, height):
-
-    standout_index = math.floor(min_dim * standout_frac)
-    logging.info(standout_index)
-
-    d = svg.Drawing(size=(width, height))
-
-    repeat = create_shape(d, p, 0, 0, shape, color1)
-    pattern = d.pattern(insert=(0, 0), size=(p, py),
-                        patternUnits="userSpaceOnUse", id='pattern')
-    pattern.add(repeat)
-
-    d.defs.add(pattern)
-
+    # First add everything up to standout row
     d.add(d.rect(insert=(0, 0),
-                 size=(max_dim * p, py * standout_index),
-                 fill='url(#pattern)'))
+                 size=(max_dim * p, py * pre_so_row),
+                 fill='url(#bg_pattern)'))
+    # Then add bg units at beginning of row
+    d.add(d.rect(insert=(0, py * (pre_so_row)),
+                 size=(so_start_row_left_num_bg * p, py),
+                 fill='url(#bg_pattern)'))
+    # Then add so units in that row
+    d.add(d.rect(insert=((so_start_row_left_num_bg) * p,
+                         py * (pre_so_row)),
+                 size=(so_start_row_width * p, py),
+                 fill='url(#so_pattern)'))
+    # Then add bg units in that row if any
+    d.add(d.rect(insert=((so_start_row_left_num_bg + so_start_row_width) * p,
+                         py * (pre_so_row)),
+                 size=(so_start_row_right_num_bg * p, py),
+                 fill='url(#bg_pattern)'))
+    # Then add more full standout rows if any
+    d.add(d.rect(insert=(0, py * (pre_so_row + 1)),
+                 size=(max_dim * p, py * num_full_so_rows),
+                 fill='url(#so_pattern)'))
+    # Then add partial row of remaining standouts
+    d.add(d.rect(insert=(0, py * (pre_so_row + 1 + num_full_so_rows)),
+                 size=(so_last_row_width * p, py),
+                 fill='url(#so_pattern)'))
+    # Then add remainder of this row of bg
+    d.add(d.rect(insert=(so_last_row_width * p,
+                         py * (pre_so_row + 1 + num_full_so_rows)),
+                 size=(so_last_row_right_num_bg * p, py),
+                 fill='url(#bg_pattern)'))
 
-    group = svg.container.Group()
-    if right:
-        group.update(
-            {'transform': 'scale(-1, 1) translate(-{}, 0)'.format(
-                max_dim * p)})
-    for i in range(num):
-        group.elements.append(create_shape(d, p, i * p, standout_index * py,
-                                           shape, color2))
+    remainder_start_row = pre_so_row + 1 + num_full_so_rows + 1
+    rem_bg_full_rows = (rem_bg_total - so_last_row_right_num_bg) / max_dim
+    logging.info('rem_bg_full_rows: %s' % rem_bg_full_rows)
+    # Then add remaining full rows of bg if any
+    d.add(d.rect(insert=(0, py * remainder_start_row),
+                 size=(max_dim * p, py * rem_bg_full_rows),
+                 fill='url(#bg_pattern)'))
 
-    group.elements.append(d.rect(insert=((i + 1) * p, standout_index * py),
-                                 size=(p * (max_dim - (i + 1)), py),
-                                 fill='url(#pattern)'))
+    rem_bg = (rem_bg_total - so_last_row_right_num_bg) % max_dim
+    # Then add remainder of last row of bg
+    d.add(d.rect(insert=(0, py * (remainder_start_row + rem_bg_full_rows)),
+                 size=(rem_bg * p, py),
+                 fill='url(#bg_pattern)'))
 
-    d.add(group)
-
-    if (standout_index + 2 < min_dim):
-        d.add(d.rect(insert=(0, py * (standout_index + 1)),
-                     size=(p * max_dim, py * (min_dim - standout_index - 2)),
-                     fill='url(#pattern)'))
-    d.add(d.rect(insert=(0, py * (min_dim - 1)),
-                 size=(p * (total - max_dim * (min_dim - 1)), py),
-                 fill='url(#pattern)'))
     return d.tostring()

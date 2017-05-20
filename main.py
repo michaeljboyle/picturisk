@@ -16,6 +16,9 @@ def get_odds_ratio(str_risk):
     odds_re = r'^\d+:\d+$'
     match = re.match(odds_re, str_risk)
     if match:
+        vals = match.group().split(':')
+        if int(vals[0]) > int(vals[1]):
+            raise ValueError('Numerator cannot be greater than denomerator')
         return match.group()
 
     decimal_re = r'^0?\.\d+$'
@@ -29,9 +32,9 @@ def get_odds_ratio(str_risk):
 
 
 def get_standout_fraction(frac):
-    # Makes sure standout frac is between 0.0 and 0.8
+    # Makes sure standout frac is between 0.0 and 1.0
     try:
-        standout_frac = float(max(min(float(frac), 0.8), 0.0))
+        standout_frac = float(max(min(float(frac), 1.0), 0.0))
     except:
         standout_frac = 0.75
     return standout_frac
@@ -91,6 +94,11 @@ class ImageRequestHandler(webapp2.RequestHandler):
         # check flip
         right = get_position(self.request.get('right'))
 
+        # Check num_wide
+        num_wide = self.request.get('num_wide', None)
+        if num_wide:
+            num_wide = int(num_wide)
+
         # Check dimensions
         w = self.request.get('w')
         num_re = r'^\d+$'
@@ -98,11 +106,11 @@ class ImageRequestHandler(webapp2.RequestHandler):
             w = int(w)
             img = draw.create_img(odds, shape=shape, color1=color1,
                                   color2=color2, standout_frac=standout_frac,
-                                  right=right, width=w)
+                                  right=right, width=w, num_wide=num_wide)
         else:
             img = draw.create_img(odds, shape=shape, color1=color1,
                                   color2=color2, standout_frac=standout_frac,
-                                  right=right)
+                                  right=right, num_wide=num_wide)
 
         self.response.headers['content-type'] = 'image/svg+xml'
         self.response.write(img)
