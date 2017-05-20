@@ -50,6 +50,9 @@ def get_color(color_param, default):
 
 
 def get_shape(shape_req):
+    # Correct old argument 'rect' which is now square
+    if shape_req is 'rect':
+        return 'square'
     default = 'square'
     if shape_req in set(['circle', 'person', 'person_rect', 'square']):
         return shape_req
