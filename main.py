@@ -5,7 +5,7 @@ import re
 import math
 
 import record as Record
-import draw as Draw
+import draw
 
 
 def get_path_id(path):
@@ -28,61 +28,78 @@ def get_odds_ratio(str_risk):
                      ' (e.g. 1:100 or 0.01)')
 
 
+def get_standout_fraction(frac):
+    # Makes sure standout frac is between 0.0 and 0.8
+    try:
+        standout_frac = float(max(min(float(frac), 0.8), 0.0))
+    except:
+        standout_frac = 0.75
+    return standout_frac
+
+
+def get_color(color_param, default):
+    # Handle hex colors and string colors
+    color_re = r'^[\dA-Fa-f]{6}$'
+    if color_param:
+        if re.match(color_re, color_param):
+            return '#' + re.match(color_re, color_param).group()
+        else:
+            return color_param
+    else:
+        return default
+
+
+def get_shape(shape_req):
+    default = 'square'
+    if shape_req in set(['circle', 'person', 'person_rect', 'square']):
+        return shape_req
+    else:
+        return default
+
+
+def get_position(pos_req):
+    if pos_req == '1':
+        return True
+    return False
+
+
 class ImageRequestHandler(webapp2.RequestHandler):
 
     def get(self):
+
         try:
             odds = get_odds_ratio(self.request.get('odds'))
         except ValueError as e:
+            self.response.set_status(400)
             self.response.write(e)
-            self.response.set_status(500)
             return
 
-        # Check shape
-        shape = 'rect'
-        shape_req = self.request.get('shape')
-        if shape_req in set(['circle', 'person', 'person_rect']):
-            shape = shape_req
+        # Get shape
+        shape = get_shape(self.request.get('shape'))
 
-        # Check colors
-        color_re = r'^[\dA-Fa-f]{6}$'
+        # Get colors
+        color1 = get_color(self.request.get('color1'), 'black')
+        color2 = get_color(self.request.get('color2'), 'red')
 
-        color1 = 'black'
-        color1_req = self.request.get('color1')
-        if re.match(color_re, color1_req):
-            color1 = '#' + re.match(color_re, color1_req).group()
-
-        color2 = 'red'
-        color2_req = self.request.get('color2')
-        if re.match(color_re, color2_req):
-            color2 = '#' + re.match(color_re, color2_req).group()
-
-        # Check standout_fraction
+        # Get standout_fraction
         standout_frac = self.request.get('index')
-        if standout_frac:
-            try:
-                standout_frac = float(max(min(float(standout_frac), 0.8), 0.0))
-            except:
-                standout_frac = 0.75
-        else:
-            standout_frac = 0.75
+        standout_frac = get_standout_fraction(standout_frac)
 
         # check flip
-        right = self.request.get('right')
-        if right == '1':
-            right = True
-        else:
-            right = False
+        right = get_position(self.request.get('right'))
 
         # Check dimensions
         w = self.request.get('w')
         num_re = r'^\d+$'
         if re.match(num_re, w):
-            img = Draw.create_img(odds, shape, color1, color2,
-                                  standout_frac, right, int(w), int(w))
+            w = int(w)
+            img = draw.create_img(odds, shape=shape, color1=color1,
+                                  color2=color2, standout_frac=standout_frac,
+                                  right=right, width=w)
         else:
-            img = Draw.create_img(odds, shape, color1, color2, standout_frac,
-                                  right)
+            img = draw.create_img(odds, shape=shape, color1=color1,
+                                  color2=color2, standout_frac=standout_frac,
+                                  right=right)
 
         self.response.headers['content-type'] = 'image/svg+xml'
         self.response.write(img)
