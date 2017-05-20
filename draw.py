@@ -3,6 +3,10 @@ import math
 
 PERSON_W = 50.0
 PERSON_H = 130.0
+PERSON_SVG = ('M86,38A11.48,11.48,0,0,0,75,27v0H55v0A11.48,'
+              '11.48,0,0,0,44,38h0V70a4,4,0,0,0,8,0V45.45L53,'
+              '46v73h0A5.5,5.5,0,0,0,64,119h0V76h2v43h0A5.5,'
+              '5.5,0,0,0,77,119h0V46l1-.52V70a4,4,0,0,0,8,0V38Z')
 
 
 def get_greatest_square(n):
@@ -21,8 +25,7 @@ def create_stickman(d, p, x_origin, y_origin, fill):
     r = d.rect(insert=(0, 0), size=(PERSON_H, PERSON_H), fill='white')
     g1 = svg.container.Group()
     c = d.circle(center=(65.5, 15.5), r=9.5, fill=fill)
-    str_commands = 'M86,38A11.48,11.48,0,0,0,75,27v0H55v0A11.48,11.48,0,0,0,44,38h0V70a4,4,0,0,0,8,0V45.45L53,46v73h0A5.5,5.5,0,0,0,64,119h0V76h2v43h0A5.5,5.5,0,0,0,77,119h0V46l1-.52V70a4,4,0,0,0,8,0V38Z'
-    path = d.path(d=str_commands, fill=fill)
+    path = d.path(d=PERSON_SVG, fill=fill)
     g1.elements = [c, path]
     g.elements = [r, g1]
     return g
@@ -35,8 +38,7 @@ def create_rect_stickman(d, p, x_origin, y_origin, fill):
     r = d.rect(insert=(0, 0), size=(PERSON_W, PERSON_H), fill='white')
     g1 = svg.container.Group()
     c = d.circle(center=(25.5, 15.5), r=9.5, fill=fill)
-    str_commands = 'M46,38A11.48,11.48,0,0,0,35,27v0H15v0A11.48,11.48,0,0,0,4,38H4V70a4,4,0,0,0,8,0V45.45L13,46v73h0A5.5,5.5,0,0,0,24,119h0V76h2v43h0A5.5,5.5,0,0,0,37,119h0V46l1-.52V70a4,4,0,0,0,8,0V38Z'
-    path = d.path(d=str_commands, fill=fill)
+    path = d.path(d=PERSON_SVG, fill=fill)
     g1.elements = [c, path]
     g.elements = [r, g1]
     return g
