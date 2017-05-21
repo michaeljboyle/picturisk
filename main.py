@@ -3,6 +3,7 @@ import json
 import webapp2
 import re
 import math
+from google.appengine.api import urlfetch
 
 import record as Record
 import draw
@@ -36,7 +37,7 @@ def get_standout_fraction(frac):
     try:
         standout_frac = float(max(min(float(frac), 1.0), 0.0))
     except:
-        standout_frac = 0.75
+        standout_frac = 0.0
     return standout_frac
 
 
@@ -69,9 +70,31 @@ def get_position(pos_req):
     return False
 
 
+def get_filetype(type):
+    if type not in set(['svg', 'png']):
+        return 'svg'
+    else:
+        return type
+
+
 class ImageRequestHandler(webapp2.RequestHandler):
 
     def get(self):
+
+        # if filetype == 'png':
+        #     args = self.request.arguments()
+        #     # Make sure to remove type arg to prevent infinite recursion
+        #     args = list(set(args) - set(['type']))
+        #     params = ['{}={}'.format(
+        #         arg, self.request.get(arg)) for arg in args]
+        #     url = ('https://us-central1-odds-view.cloudfunctions.net/'
+        #            'convertSVG/?')
+        #     logging.info('png url: %s' % url + '&'.join(params))
+        #     response = urlfetch.fetch(url + '&'.join(params))
+        #     logging.info(response.content)
+        #     self.response.headers['content-type'] = 'image/png'
+        #     self.response.write(response.content)
+        #     return
 
         try:
             odds = get_odds_ratio(self.request.get('odds'))
@@ -112,6 +135,20 @@ class ImageRequestHandler(webapp2.RequestHandler):
                                   color2=color2, standout_frac=standout_frac,
                                   right=right, num_wide=num_wide)
 
+        # Check filetype
+        filetype = get_filetype(self.request.get('type'))
+        if filetype == 'png':
+            url = ('https://us-central1-odds-view.cloudfunctions.net/'
+                   'convertSVG/')
+            headers = {'Content-Type': 'application/octet-stream'}
+            response = urlfetch.fetch(url,
+                                      payload=img,
+                                      method=urlfetch.POST,
+                                      headers=headers,
+                                      deadline=60)
+            self.response.headers['content-type'] = 'image/png'
+            self.response.write(response.content)
+            return
         self.response.headers['content-type'] = 'image/svg+xml'
         self.response.write(img)
 

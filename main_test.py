@@ -36,6 +36,7 @@ class AppTest(unittest.TestCase):
         # Next, declare which service stubs you want to use.
         self.testbed.init_datastore_v3_stub()
         self.testbed.init_memcache_stub()
+        self.testbed.init_urlfetch_stub()
         # Clear ndb's in-context cache between tests.
         # This prevents data from leaking between tests.
         # Alternatively, you could disable caching by
@@ -65,7 +66,7 @@ class AppTest(unittest.TestCase):
         self.assertEqual(0.5, main.get_standout_fraction(frac))
         # Test default
         frac = 'abc'
-        self.assertEqual(0.75, main.get_standout_fraction(frac))
+        self.assertEqual(0.0, main.get_standout_fraction(frac))
 
     def test_get_color(self):
         # Test hex
@@ -97,7 +98,16 @@ class AppTest(unittest.TestCase):
         pos_req = 'abc'
         self.assertFalse(main.get_position(pos_req))
 
+    def test_get_filetype(self):
+        # Test arg
+        req = 'png'
+        self.assertEqual('png', main.get_filetype(req))
+        # test default
+        req = 'abc'
+        self.assertEqual('svg', main.get_filetype(req))
+
     # Test the handler
+    @mock.patch('main.get_filetype')
     @mock.patch('main.get_position')
     @mock.patch('main.get_shape')
     @mock.patch('main.get_odds_ratio')
@@ -105,13 +115,14 @@ class AppTest(unittest.TestCase):
     @mock.patch('main.get_color')
     @mock.patch('main.get_standout_fraction')
     def test_ImageRequestHandler(self, get_frac, get_color, create_img, get_o,
-                                 get_shape, get_pos):
+                                 get_shape, get_pos, get_ft):
+        get_ft.return_value = 'svg'
         get_frac.return_value = 0.75
         get_color.return_value = 'orange'
         get_o.return_value = '1:50'
         get_pos.return_value = True
         get_shape.return_value = 'square'
-        # Test all params
+        # Test all params except filetype
         params = {
             'odds': '1:100',
             'shape': 'circle',
@@ -140,6 +151,7 @@ class AppTest(unittest.TestCase):
         self.assertEqual(response.content_type, 'image/svg+xml')
 
         # Test with no width arg
+        get_ft.return_value = 'svg'
         params = {
             'odds': '1:100',
             'shape': 'circle',
@@ -147,7 +159,8 @@ class AppTest(unittest.TestCase):
             'color2': 'green',
             'index': '0.5',
             'right': '1',
-            'num_wide': 500
+            'num_wide': 500,
+            'type': 'png'
         }
         response = self.testapp.get('/api/draw/', params)
         create_img.assert_called_with('1:50', shape='square',

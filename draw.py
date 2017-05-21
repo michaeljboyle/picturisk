@@ -127,9 +127,11 @@ def create_img(odds, shape='square', color1='black', color2='red',
     height = py * min_dim
     logging.info('height: %s' % height)
 
-    return draw_fig(num, total, min_dim, max_dim, p, py, shape,
-                    color1, color2, standout_frac, right, width,
-                    height)
+    drawing = draw_fig(num, total, min_dim, max_dim, p, py, shape,
+                       color1, color2, standout_frac, right, width,
+                       height)
+
+    return drawing.tostring()
 
 
 def draw_fig(num, total, min_dim, max_dim, p, py, shape,
@@ -221,4 +223,4 @@ def draw_fig(num, total, min_dim, max_dim, p, py, shape,
                  size=(rem_bg * p, py),
                  fill='url(#bg_pattern)'))
 
-    return d.tostring()
+    return d
