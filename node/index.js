@@ -13,16 +13,6 @@ exports.convertSVG = function convertSVG(req, res) {
     buffer = req.body;
     res.writeHead(200, {'Content-Type': 'image/png'});
     svg2png(buffer)
-        .then(buffer => res.end(data))
-        .catch(e => console.error(e));
-
-
-    // base_url = 'https://odds-view.appspot.com/api/?';
-    // params = [];
-    // for (var key in req.query) {
-    //     arg = key + '=' + req.query[key];
-    //     params.push(arg);
-    // }
-    // res.writeHead(200, {'Content-Type': 'image/png'});
-    
+        .then(buffer => res.end(buffer))
+        .catch(e => console.error(e)); 
 };
